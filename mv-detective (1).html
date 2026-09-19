@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#060b08">
+<title>MV Detective</title>
+<style>
+:root{
+  --bg:#050a07;
+  --panel:#0b120e;
+  --panel2:#101a14;
+  --line:#173322;
+  --green:#00ff66;
+  --green-dim:#0aa34a;
+  --text:#c9f5d8;
+  --muted:#6f9a80;
+  --warn:#ffcf4a;
+  --err:#ff5c6c;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:var(--mono);font-size:15px;line-height:1.5;
+  -webkit-tap-highlight-color:transparent;
+  min-height:100vh;
+}
+#rain{position:fixed;inset:0;width:100%;height:100%;z-index:0;opacity:.35;pointer-events:none}
+.shell{position:relative;z-index:1;max-width:560px;margin:0 auto;padding:0 16px calc(40px + env(safe-area-inset-bottom))}
+header{
+  display:flex;align-items:center;gap:10px;
+  padding:calc(16px + env(safe-area-inset-top)) 0 14px;
+  border-bottom:1px solid var(--line);
+}
+.logo{width:26px;height:26px;flex:none}
+h1{font-size:20px;letter-spacing:.22em;color:var(--green);font-weight:700;text-shadow:0 0 12px rgba(0,255,102,.45)}
+.badge{font-size:11px;border:1px solid var(--line);color:var(--green-dim);padding:2px 8px;border-radius:4px;letter-spacing:.08em}
+.spacer{flex:1}
+.icon-btn{background:none;border:0;color:var(--muted);width:40px;height:40px;display:grid;place-items:center;border-radius:8px;cursor:pointer}
+.icon-btn:hover,.icon-btn:focus-visible{color:var(--green);background:var(--panel)}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
+.stage{margin-top:22px}
+.drop{
+  position:relative;display:grid;place-items:center;text-align:center;
+  min-height:300px;border:1px dashed var(--green-dim);border-radius:14px;
+  background:linear-gradient(180deg,rgba(0,255,102,.03),rgba(0,255,102,0));
+  padding:24px;cursor:pointer;transition:border-color .2s,background .2s;
+}
+.drop.over{border-color:var(--green);background:rgba(0,255,102,.08)}
+.drop p{color:var(--muted);margin-top:8px}
+.drop strong{color:var(--green);font-size:17px}
+.drop svg{color:var(--green)}
+.actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.btn{
+  flex:1;min-width:140px;background:var(--green);color:#022a10;border:0;border-radius:10px;
+  padding:14px 16px;font:700 15px var(--mono);letter-spacing:.06em;cursor:pointer;
+}
+.btn.ghost{background:transparent;color:var(--green);border:1px solid var(--green-dim)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn:not(:disabled):active{transform:scale(.98)}
+
+.frame{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#000}
+.frame img{display:block;width:100%;max-height:62vh;object-fit:contain;background:#000}
+.frame .corner{position:absolute;width:26px;height:26px;border:2px solid var(--green);opacity:.85}
+.corner.tl{top:8px;left:8px;border-right:0;border-bottom:0}
+.corner.tr{top:8px;right:8px;border-left:0;border-bottom:0}
+.corner.bl{bottom:8px;left:8px;border-right:0;border-top:0}
+.corner.br{bottom:8px;right:8px;border-left:0;border-top:0}
+.beam{
+  position:absolute;left:0;right:0;height:3px;background:var(--green);
+  box-shadow:0 0 18px 4px rgba(0,255,102,.6);top:0;display:none;
+}
+.scanning .beam{display:block;animation:sweep 2.4s ease-in-out infinite alternate}
+@keyframes sweep{from{top:0}to{top:calc(100% - 3px)}}
+.status{
+  position:absolute;left:10px;right:10px;bottom:10px;background:rgba(6,12,9,.88);
+  border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:none;
+}
+.scanning .status{display:block}
+.status b{color:var(--green);letter-spacing:.14em;font-size:13px}
+.status span{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+
+.progress{height:5px;background:var(--panel2);border-radius:3px;margin-top:14px;overflow:hidden;display:none}
+.progress i{display:block;height:100%;width:0;background:var(--green);box-shadow:0 0 10px var(--green);transition:width .5s ease}
+.ptext{display:none;text-align:center;color:var(--green-dim);font-size:12px;letter-spacing:.14em;margin-top:10px}
+.busy .progress,.busy .ptext{display:block}
+
+.result{margin-top:20px;display:none}
+.result.show{display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:12px}
+.card h2{font-size:12px;letter-spacing:.14em;color:var(--muted);font-weight:600;margin-bottom:8px}
+.best{font-size:22px;line-height:1.25;color:var(--green);font-weight:700;overflow-wrap:anywhere}
+.kind{color:var(--muted);font-size:13px;margin-top:2px}
+.conf{margin-top:14px}
+.conf-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px}
+.bar{height:8px;background:var(--panel2);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--green);width:0;transition:width .8s ease}
+.bar.mid i{background:var(--warn)}
+.bar.low i{background:var(--err)}
+.note{font-size:12.5px;color:var(--muted);margin-top:10px}
+ul.plain{list-style:none}
+ul.plain li{padding:6px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}
+ul.plain li:first-child{border-top:0;padding-top:0}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12.5px;color:var(--text)}
+.links{display:grid;gap:8px}
+.links a{
+  display:block;text-decoration:none;color:var(--green);border:1px solid var(--green-dim);
+  border-radius:10px;padding:12px 14px;font-size:14px;overflow-wrap:anywhere
+}
+.links a:hover{background:rgba(0,255,102,.08)}
+.err{border-color:var(--err);color:var(--err)}
+
+dialog{
+  margin:auto;background:var(--panel);color:var(--text);border:1px solid var(--green-dim);
+  border-radius:14px;padding:20px;width:min(92vw,460px);
+}
+dialog::backdrop{background:rgba(0,0,0,.7)}
+dialog h3{color:var(--green);letter-spacing:.14em;font-size:15px;margin-bottom:14px}
+label{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 4px}
+input[type=text],input[type=password]{
+  width:100%;background:#050a07;border:1px solid var(--line);color:var(--text);
+  border-radius:8px;padding:11px 12px;font:14px var(--mono)
+}
+input:focus{outline:2px solid var(--green);outline-offset:0}
+.foot{margin-top:24px;text-align:center;color:var(--muted);font-size:11.5px;letter-spacing:.06em}
+.hidden{display:none!important}
+@media (prefers-reduced-motion:reduce){
+  .scanning .beam{animation:none;top:50%}
+  .bar i,.progress i{transition:none}
+}
+</style>
+</head>
+<body>
+<canvas id="rain" aria-hidden="true"></canvas>
+
+<div class="shell">
+  <header>
+    <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="#00ff66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.4 9.3-8 11-4.6-1.7-8-6-8-11V5l8-3z"/></svg>
+    <h1>MV DETECTIVE</h1>
+    <span class="badge">VISION</span>
+    <span class="spacer"></span>
+    <button class="icon-btn" id="openSettings" aria-label="Settings">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </header>
+
+  <main class="stage" id="stage">
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose an image">
+      <div>
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>
+        <p><strong>Drop an image here</strong></p>
+        <p>or tap to choose a photo, screenshot or movie still</p>
+      </div>
+    </div>
+    <input type="file" id="file" accept="image/*" class="hidden">
+    <input type="file" id="cam" accept="image/*" capture="environment" class="hidden">
+
+    <div id="scanBox" class="hidden">
+      <div class="frame" id="frame">
+        <img id="preview" alt="Selected image">
+        <span class="corner tl"></span><span class="corner tr"></span>
+        <span class="corner bl"></span><span class="corner br"></span>
+        <div class="beam"></div>
+        <div class="status"><b id="stTitle">READING IMAGE</b><span id="stSub">Extracting visual details...</span></div>
+      </div>
+      <div class="progress"><i id="pbar"></i></div>
+      <div class="ptext" id="ptext">0% COMPLETE</div>
+    </div>
+
+    <div class="actions" id="actions">
+      <button class="btn ghost" id="camBtn" type="button">Take photo</button>
+      <button class="btn" id="scanBtn" type="button" disabled>Analyze image</button>
+    </div>
+
+    <section class="result" id="result" aria-live="polite"></section>
+  </main>
+
+  <p class="foot">Analysis is generated by an AI vision model and can be wrong. Check important results yourself.</p>
+</div>
+
+<dialog id="settings">
+  <h3>SETTINGS</h3>
+  <label for="apiKey">Anthropic API key (used only from this browser)</label>
+  <input type="password" id="apiKey" placeholder="sk-ant-..." autocomplete="off">
+  <label for="proxy">Or your own server endpoint (recommended for a live site)</label>
+  <input type="text" id="proxy" placeholder="https://yourdomain.com/api/analyze" autocomplete="off">
+  <label for="model">Model</label>
+  <input type="text" id="model" value="claude-sonnet-5" autocomplete="off">
+  <p class="note">On a public site, don't put your key in the browser. Point the endpoint at a small server that adds your key and forwards the request to https://api.anthropic.com/v1/messages.</p>
+  <div class="actions">
+    <button class="btn ghost" id="closeSettings" type="button">Cancel</button>
+    <button class="btn" id="saveSettings" type="button">Save</button>
+  </div>
+</dialog>
+
+<script>
+(function(){
+"use strict";
+var $ = function(id){return document.getElementById(id)};
+
+/* ---------- Matrix rain ---------- */
+var cv = $("rain"), cx = cv.getContext("2d");
+var glyphs = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF";
+var cols = [], fs = 16, W = 0, H = 0;
+function sizeRain(){
+  W = cv.width = window.innerWidth; H = cv.height = window.innerHeight;
+  cols = new Array(Math.ceil(W/fs)).fill(0).map(function(){return Math.random()*H/fs});
+}
+function drawRain(){
+  cx.fillStyle = "rgba(5,10,7,.12)"; cx.fillRect(0,0,W,H);
+  cx.fillStyle = "#00ff66"; cx.font = fs + "px monospace";
+  for(var i=0;i<cols.length;i++){
+    var ch = glyphs.charAt(Math.floor(Math.random()*glyphs.length));
+    cx.fillText(ch, i*fs, cols[i]*fs);
+    if(cols[i]*fs > H && Math.random() > .975) cols[i] = 0;
+    cols[i]++;
+  }
+}
+sizeRain(); window.addEventListener("resize", sizeRain);
+if(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches){
+  for(var k=0;k<30;k++) drawRain();
+}else{
+  setInterval(drawRain, 60);
+}
+
+/* ---------- Settings ---------- */
+var store = {
+  get:function(k){try{return localStorage.getItem(k)||""}catch(e){return ""}},
+  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+};
+var dlg = $("settings");
+$("apiKey").value = store.get("mvd_key");
+$("proxy").value = store.get("mvd_proxy");
+$("model").value = store.get("mvd_model") || "claude-sonnet-5";
+$("openSettings").onclick = function(){dlg.showModal()};
+$("closeSettings").onclick = function(){dlg.close()};
+$("saveSettings").onclick = function(){
+  store.set("mvd_key",$("apiKey").value.trim());
+  store.set("mvd_proxy",$("proxy").value.trim());
+  store.set("mvd_model",$("model").value.trim() || "claude-sonnet-5");
+  dlg.close();
+};
+
+/* ---------- Image intake ---------- */
+var imgB64 = null, imgType = "image/jpeg";
+var drop = $("drop"), fileIn = $("file"), camIn = $("cam");
+drop.onclick = function(){fileIn.click()};
+drop.onkeydown = function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();fileIn.click()}};
+$("camBtn").onclick = function(){camIn.click()};
+["dragenter","dragover"].forEach(function(t){drop.addEventListener(t,function(e){e.preventDefault();drop.classList.add("over")})});
+["dragleave","drop"].forEach(function(t){drop.addEventListener(t,function(e){e.preventDefault();drop.classList.remove("over")})});
+drop.addEventListener("drop",function(e){var f=e.dataTransfer.files[0];if(f)loadFile(f)});
+fileIn.onchange = function(){if(fileIn.files[0])loadFile(fileIn.files[0])};
+camIn.onchange = function(){if(camIn.files[0])loadFile(camIn.files[0])};
+
+function loadFile(f){
+  if(!/^image\//.test(f.type)){showError("That file is not an image. Choose a JPG, PNG, WebP or GIF.");return}
+  var url = URL.createObjectURL(f), im = new Image();
+  im.onload = function(){
+    var max = 1568, s = Math.min(1, max/Math.max(im.width, im.height));
+    var c = document.createElement("canvas");
+    c.width = Math.round(im.width*s); c.height = Math.round(im.height*s);
+    c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+    var data = c.toDataURL("image/jpeg",.85);
+    imgB64 = data.split(",")[1]; imgType = "image/jpeg";
+    $("preview").src = data;
+    drop.classList.add("hidden"); $("scanBox").classList.remove("hidden");
+    $("scanBtn").disabled = false; $("result").className = "result"; $("result").innerHTML = "";
+    URL.revokeObjectURL(url);
+  };
+  im.onerror = function(){showError("This image could not be read. Try a different file.")};
+  im.src = url;
+}
+
+/* ---------- Analysis ---------- */
+var PROMPT = [
+"You analyze a single image and report what can be verified from it.",
+"Rules:",
+"- Never identify a real person from their face or body. You may use a name only if it is printed in the image (caption, name tag, credits, subtitle).",
+"- You may identify a movie, show, artwork, landmark, product or place from non-facial evidence: title text, logos, posters, distinctive sets, props, vehicles, architecture, signage, aspect and style.",
+"- If the image is a film still with no such evidence, say the source cannot be determined and describe what a person could search for instead.",
+"- Give an honest confidence from 0 to 100 that reflects the evidence. Do not inflate it. Use under 50 when you are guessing.",
+"Respond with ONLY a JSON object, no markdown fences, with these keys:",
+"best_match (string, the most likely title/place/subject or 'Unknown'),",
+"kind (string, e.g. 'Film still', 'Landmark', 'Product', 'Artwork', 'Photo'),",
+"confidence (integer 0-100),",
+"evidence (array of short strings, what supports the match),",
+"scene (string, 1-2 sentence description without naming people),",
+"visible_text (array of strings read from the image),",
+"objects (array of short strings),",
+"alternatives (array of objects {name, confidence}),",
+"search_queries (array of 3 short web search queries that would help verify or find the source),",
+"caveats (string, what limits this result)."
+].join("\n");
+
+var stages = [
+ ["READING IMAGE","Extracting visual details..."],
+ ["DETECTING TEXT","Looking for titles, logos and signs..."],
+ ["ANALYZING SCENE","Checking setting, objects and style..."],
+ ["RANKING MATCHES","Comparing candidate sources..."]
+];
+var timer = null;
+
+function setProgress(p, si){
+  $("pbar").style.width = p + "%";
+  $("ptext").textContent = Math.round(p) + "% COMPLETE";
+  if(si!=null){$("stTitle").textContent = stages[si][0];$("stSub").textContent = stages[si][1]}
+}
+function startBusy(){
+  $("stage").classList.add("busy"); $("frame").classList.add("scanning");
+  $("scanBtn").disabled = true; $("camBtn").disabled = true;
+  var p = 3; setProgress(p,0);
+  timer = setInterval(function(){
+    p = Math.min(92, p + (p<60 ? 4 : 1.2));
+    setProgress(p, Math.min(3, Math.floor(p/25)));
+  }, 400);
+}
+function stopBusy(){
+  clearInterval(timer);
+  $("frame").classList.remove("scanning");
+  $("scanBtn").disabled = false; $("camBtn").disabled = false;
+}
+
+$("scanBtn").onclick = function(){
+  if(!imgB64) return;
+  var key = store.get("mvd_key"), proxy = store.get("mvd_proxy");
+  if(!key && !proxy){dlg.showModal();return}
+  startBusy();
+  var body = {
+    model: store.get("mvd_model") || "claude-sonnet-5",
+    max_tokens: 1500,
+    messages:[{role:"user",content:[
+      {type:"image",source:{type:"base64",media_type:imgType,data:imgB64}},
+      {type:"text",text:PROMPT}
+    ]}]
+  };
+  var url = proxy || "https://api.anthropic.com/v1/messages";
+  var headers = {"content-type":"application/json"};
+  if(!proxy){
+    headers["x-api-key"] = key;
+    headers["anthropic-version"] = "2023-06-01";
+    headers["anthropic-dangerous-direct-browser-access"] = "true";
+  }
+  fetch(url,{method:"POST",headers:headers,body:JSON.stringify(body)})
+   .then(function(r){
+     return r.json().then(function(j){
+       if(!r.ok) throw new Error((j && j.error && j.error.message) || ("Request failed (" + r.status + ")"));
+       return j;
+     });
+   })
+   .then(function(j){
+     var txt = (j.content||[]).filter(function(b){return b.type==="text"}).map(function(b){return b.text}).join("");
+     var a = txt.indexOf("{"), b = txt.lastIndexOf("}");
+     if(a<0||b<0) throw new Error("The engine returned an unreadable answer. Try again.");
+     var data = JSON.parse(txt.slice(a,b+1));
+     setProgress(100,3);
+     setTimeout(function(){stopBusy();$("stage").classList.remove("busy");render(data)},450);
+   })
+   .catch(function(e){
+     stopBusy();$("stage").classList.remove("busy");
+     showError(e.message || "Something went wrong. Check your key or endpoint and try again.");
+   });
+};
+
+/* ---------- Rendering ---------- */
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function list(a){return (a&&a.length)?'<ul class="plain">'+a.map(function(x){return "<li>"+esc(x)+"</li>"}).join("")+"</ul>":'<p class="note">Nothing found.</p>'}
+function tags(a){return (a&&a.length)?'<div class="tags">'+a.map(function(x){return '<span class="tag">'+esc(x)+"</span>"}).join("")+"</div>":'<p class="note">None detected.</p>'}
+
+function render(d){
+  var c = Math.max(0, Math.min(100, parseInt(d.confidence,10) || 0));
+  var cls = c>=75 ? "" : (c>=50 ? "mid" : "low");
+  var lvl = c>=75 ? "Strong evidence" : (c>=50 ? "Partial evidence" : "Weak evidence");
+  var alts = (d.alternatives||[]).map(function(a){return esc(a.name)+" ("+esc(a.confidence)+"%)"});
+  var qs = (d.search_queries||[]).slice(0,3);
+  var h = '';
+  h += '<div class="card"><h2>BEST MATCH</h2><div class="best">'+esc(d.best_match||"Unknown")+'</div><div class="kind">'+esc(d.kind||"")+'</div>';
+  h += '<div class="conf"><div class="conf-row"><span>'+lvl+'</span><span>'+c+'%</span></div><div class="bar '+cls+'"><i id="cbar"></i></div></div>';
+  if(d.caveats) h += '<p class="note">'+esc(d.caveats)+'</p>';
+  h += '</div>';
+  if(d.scene) h += '<div class="card"><h2>SCENE</h2><p>'+esc(d.scene)+'</p></div>';
+  h += '<div class="card"><h2>EVIDENCE</h2>'+list(d.evidence)+'</div>';
+  h += '<div class="card"><h2>TEXT IN IMAGE</h2>'+tags(d.visible_text)+'</div>';
+  h += '<div class="card"><h2>OBJECTS</h2>'+tags(d.objects)+'</div>';
+  if(alts.length) h += '<div class="card"><h2>OTHER CANDIDATES</h2>'+list(alts)+'</div>';
+  h += '<div class="card"><h2>VERIFY WITH SEARCH</h2><div class="links">';
+  qs.forEach(function(q){h += '<a href="https://www.google.com/search?q='+encodeURIComponent(q)+'" target="_blank" rel="noopener noreferrer">Google: '+esc(q)+'</a>'});
+  h += '<a href="https://lens.google.com/upload" target="_blank" rel="noopener noreferrer">Google Lens reverse image search</a>';
+  h += '<a href="https://tineye.com/" target="_blank" rel="noopener noreferrer">TinEye reverse image search</a>';
+  h += '<a href="https://www.bing.com/visualsearch" target="_blank" rel="noopener noreferrer">Bing Visual Search</a>';
+  h += '</div><p class="note">The reverse-image sites ask you to upload the same image yourself.</p></div>';
+  h += '<div class="actions"><button class="btn" id="again" type="button">Scan another image</button></div>';
+  var r = $("result"); r.innerHTML = h; r.className = "result show";
+  requestAnimationFrame(function(){$("cbar").style.width = c+"%"});
+  $("again").onclick = reset;
+  r.scrollIntoView({behavior:"smooth",block:"start"});
+}
+function showError(m){
+  var r = $("result");
+  r.innerHTML = '<div class="card err"><h2>COULD NOT COMPLETE</h2><p>'+esc(m)+'</p></div>';
+  r.className = "result show";
+}
+function reset(){
+  imgB64 = null; $("preview").removeAttribute("src");
+  $("scanBox").classList.add("hidden"); drop.classList.remove("hidden");
+  $("scanBtn").disabled = true; $("result").className = "result"; $("result").innerHTML = "";
+  fileIn.value = ""; camIn.value = "";
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+})();
+</script>
+</body>
+</html>
